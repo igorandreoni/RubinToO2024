@@ -5,6 +5,6 @@ https://lssttooworkshop.github.io
 
 The notebook plots_RubinToO2024.ipynb has the following features:
 - visualization of the ToO observing strategies
-- plot light curves
+- light curves plots
 - exposure time calculator (ETC) to convert exposure times to limiting magnitudes and vice-versa
-- compute time budget
+- time budget calculations
