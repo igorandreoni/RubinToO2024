@@ -46,15 +46,20 @@ def makeChart(results, event="BNS merger",
     ax.grid(which='both', color='grey', linestyle=':')
     ax.set_xlabel(f"Hours from {event}", fontsize=30)
 
-    # plot edges based on exptime
+    # plot edges based on median exptimes
     plot_edges(results, ax, marker_size=60,
                exptimes_marker_list=exptimes_marker_list)
 
     # Legend
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
+    # Organize number of rows
+    if len(by_label.values()) <= 8:
+        bbox_to_anchor = (0.5, 1.39)
+    else:
+        bbox_to_anchor = (0.5, 1.43)
     ax.legend(by_label.values(), by_label.keys(), loc='upper center',
-              bbox_to_anchor=(0.5, 1.39), ncol=9, fancybox=True, shadow=False,
+              bbox_to_anchor=bbox_to_anchor, ncol=8, fancybox=True, shadow=False,
               fontsize=20, framealpha=0.8, borderpad=1.5)
     # Logscale
     ax.set_xscale("log")
@@ -96,7 +101,7 @@ def plot_edges(results, ax, marker_size=50,
     # create a dictionary for the markers
     exptimes_marker_dict = {}
     # Check that there are enough markers for the exptimes
-    exptimes_all = set(np.concatenate([results[k]["exptimes"]
+    exptimes_all = set(np.concatenate([results[k]["exptimes_median"]
                                        for k in results.keys()]))
     if len(exptimes_marker_list) < len(set(exptimes_all)):
         print("STOP! Add markers to your exptimes_marker_list, \n\
@@ -106,7 +111,7 @@ there are not enough")
         exptimes_marker_dict[et] = marker
     for i in range(len(ylabels)):
         timeline = np.array(results[ylabels[i]]["cadence_hr"])
-        exptimes = np.array(results[ylabels[i]]["exptimes"])
+        exptimes = np.array(results[ylabels[i]]["exptimes_median"])
         # Plot the edges by iterating over epochs and exp. times
         for t, exptime in zip(timeline, exptimes):
             ax.plot(t, (i*0.5)+0.5,
