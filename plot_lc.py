@@ -1,5 +1,8 @@
 # author: Igor Andreoni <igor.andreoni@gmail.com>
 
+import os
+import glob
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
@@ -7,6 +10,76 @@ from matplotlib.ticker import MaxNLocator
 from astropy.cosmology import Planck18 as cosmo
 import astropy.cosmology as ac
 import astropy.units as u
+
+
+def get_kne_filename(inj_params_list=None, datadir='models/'):
+    """Given kilonova parameters, get the filename from the grid of models
+    developed by M. Bulla
+
+    Parameters
+    ----------
+    inj_params_list : `list` [`dict`]
+        parameters for the kilonova model such as
+        mass of the dynamical ejecta (mej_dyn), mass of the disk wind ejecta
+        (mej_wind), semi opening angle of the cylindrically-symmetric ejecta
+        fan ('phi'), and viewing angle ('theta'). For example
+        inj_params_list = [{'mej_dyn': 0.005,
+              'mej_wind': 0.050,
+              'phi': 30,
+              'theta': 25.8}]
+    """
+    # Get files, model grid developed by M. Bulla
+    file_list = glob.glob(os.path.join(datadir, "*.dat"))
+
+    # If no specific parameters passed - return everything.
+    if inj_params_list is None or len(inj_params_list) == 0:
+        return file_list
+
+    # Otherwise find the parameters for each file and
+    # then find the relevant matches.
+    params = {}
+    matched_files = []
+    for filename in file_list:
+        key = filename.replace(".dat", "").split("/")[-1]
+        params[key] = {}
+        params[key]["filename"] = filename
+        key_split = key.split("_")
+        # Binary neutron star merger models
+        # FIXME reinstate difference nsns and bns
+        # if key_split[0] == "nsns":
+        if True:
+            mejdyn = float(key_split[2].replace("mejdyn", ""))
+            mejwind = float(key_split[3].replace("mejwind", ""))
+            phi0 = float(key_split[4].replace("phi", ""))
+            theta = float(key_split[5])
+            dist_Mpc = float(key_split[6].replace("dMpc", ""))
+            params[key]["mej_dyn"] = mejdyn
+            params[key]["mej_wind"] = mejwind
+            params[key]["phi"] = phi0
+            params[key]["theta"] = theta
+            params[key]["dMpc"] = dist_Mpc
+        # Neutron star--black hole merger models
+        #elif key_split[0] == "nsbh":
+        #    mej_dyn = float(key_split[2].replace("mejdyn", ""))
+        #    mej_wind = float(key_split[3].replace("mejwind", ""))
+        #    phi = float(key_split[4].replace("phi", ""))
+        #    theta = float(key_split[5])
+        #    params[key]["mej_dyn"] = mej_dyn
+        #    params[key]["mej_wind"] = mej_wind
+        #    params[key]["phi"] = phi
+        #    params[key]["theta"] = theta
+    for key in params.keys():
+        for inj_params in inj_params_list:
+            match = all([np.isclose(params[key][var], inj_params[var]) for var in inj_params.keys()])
+            if match:
+                matched_files.append(params[key]["filename"])
+                print(f"Found match for {inj_params}")
+    print(
+        f"Found matches for {len(matched_files)}/{len(inj_params_list)} \
+          sets of parameters"
+    )
+
+    return matched_files
 
 
 def getRawPotential(rate, area, time_window, maglim, M):
