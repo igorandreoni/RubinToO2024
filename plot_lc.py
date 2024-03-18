@@ -70,7 +70,8 @@ def get_kne_filename(inj_params_list=None, datadir='models/'):
         #    params[key]["theta"] = theta
     for key in params.keys():
         for inj_params in inj_params_list:
-            match = all([np.isclose(params[key][var], inj_params[var]) for var in inj_params.keys()])
+            match = all([np.isclose(params[key][var], inj_params[var])
+                        for var in inj_params.keys()])
             if match:
                 matched_files.append(params[key]["filename"])
                 print(f"Found match for {inj_params}")
