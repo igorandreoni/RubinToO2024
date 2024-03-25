@@ -72,7 +72,8 @@ def complete_strategies(strategies, airmass=1.):
             # Iterate over the epochs
             for j in np.arange(len(strategies[strategy_names[i]]["exptimes"])):
                 exptimes_epoch = strategies[strategy_names[i]]["exptimes"][j]
-                strategies[strategy_names[i]]["exptimes_median"].append(int(np.round(np.median(exptimes_epoch))))
+                exptime_median = int(np.round(np.median(exptimes_epoch)))
+                strategies[strategy_names[i]]["exptimes_median"].append(exptime_median)
                 # Initialize a list of depths
                 depths_epoch = []
                 # Get the depth for each filter
