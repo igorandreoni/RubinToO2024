@@ -123,6 +123,14 @@ def doPlotLc(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
              filters_color_dict={'u': 'b', 'g': 'g', 'r': 'r', 'i': 'yellow',
                                  'z': 'k', 'y': 'orange'},
              linestyle="-"):
+    # Make sure the time starts from zero in the model
+    if t["t[days]"][0] == 0:
+        pass
+    else:
+        # Add one row at the top
+        t.add_row([0.] + [99. for x in np.arange(len(t.colnames) - 1)])
+        # Re-sort
+        t.sort("t[days]")
     # For each strategy make a plot
     strategy_names = list(strategies.keys())
     for i in range(len(strategy_names)):
