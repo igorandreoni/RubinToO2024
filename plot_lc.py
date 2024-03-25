@@ -130,8 +130,8 @@ def doPlotLc(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
         # Epochs of the strategy in days
         days_strategy = np.array(strategies[strategy_names[i]]["cadence_hr"]
                                  ) / 24
-        depths_strategy = np.array(strategies[strategy_names[i]]["depths"])
-        filters_strategy = np.array(strategies[strategy_names[i]]["filters"])
+        depths_strategy = strategies[strategy_names[i]]["depths"]
+        filters_strategy = strategies[strategy_names[i]]["filters"]
         # Initialize detections and non-detections
         detections = []
         non_detections = []
@@ -169,14 +169,19 @@ def doPlotLc(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
             ax.plot(xnew, f(xnew), linestyle=linestyle, label=label,
                     color=filters_color_dict[filt.replace("lsst", "")])
             # for each epoch, check if there is the given filter
-            for day_strategy, filter_strategy, depth_strategy in zip(days_strategy, filters_strategy, depths_strategy):
+            for day_strategy, filter_strategy, depth_strategy_epoch in zip(days_strategy, filters_strategy, depths_strategy):
                 # Apply the delay between the event and the obs. window
                 day_strategy += delay_hr/24  # from hours to days
                 # Apply a delay between filters to show overlapping points
                 day_strategy += offset_filt_hr_tot/24
                 if not (filt.replace('lsst', '') in filter_strategy):
                     continue
-                elif f(day_strategy) <= depth_strategy:
+                else:
+                    # Find depth for the given filter
+                    idx = filter_strategy.index(filt.replace('lsst', ''))
+                    depth = depth_strategy_epoch[idx]
+                # Detection or non-detection?
+                if f(day_strategy) <= depth:
                     detections.append((filt.replace('lsst', ''),
                                        day_strategy, f(day_strategy)))
                     # Plot the detection
@@ -185,9 +190,9 @@ def doPlotLc(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
                             color=filters_color_dict[filt.replace("lsst", "")])
                 else:
                     non_detections.append((filt.replace('lsst', ''),
-                                           day_strategy, depth_strategy))
+                                           day_strategy, depth))
                     # Plot the non-detection
-                    ax.plot(day_strategy, depth_strategy, linestyle="none",
+                    ax.plot(day_strategy, depth, linestyle="none",
                             marker="v", markersize=8,
                             color=filters_color_dict[filt.replace("lsst", "")])
 

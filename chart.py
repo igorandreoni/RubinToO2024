@@ -5,6 +5,118 @@ import math
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
+import etc
+
+
+def complete_strategies(strategies, airmass=1.):
+    """
+    Given some input strategies, calculate depths and exposure times to complete 
+    the strategy dictionary
+    """
+    # If depths are given, then compute the exposure times
+    strategy_names = list(strategies.keys())
+    for i in range(len(strategy_names)):
+        # Check if individual depths are given, as they will dominate
+        if len(strategies[strategy_names[i]]["depths"]) > 0:
+            print(f"{strategy_names[i]}: Using INDIVIDUAL DEPTHS to calculate the exposure times")
+            # Initiate the exposure times and median depth list
+            strategies[strategy_names[i]]["exptimes"] = []
+            strategies[strategy_names[i]]["exptimes_median"] = []
+            strategies[strategy_names[i]]["depths_median"] = []
+            # Iterate over the epochs
+            for j in np.arange(len(strategies[strategy_names[i]]["depths"])):
+                depths_epoch = strategies[strategy_names[i]]["depths"][j]
+                filters_epoch = strategies[strategy_names[i]]["filters"][j]
+                strategies[strategy_names[i]]["depths_median"].append(np.median(depths_epoch))
+                # Iterate over the filters
+                exptimes_epoch = []
+                for filt, depth in zip(filters_epoch, depths_epoch):
+                    exptime = int(np.round(etc.get_exptime(depth, filt, X=airmass)))
+                    exptimes_epoch.append(exptime)
+                # Add the average exposure time to the strategies dictionary
+                strategies[strategy_names[i]]["exptimes_median"].append(int(np.round(np.median(exptimes_epoch))))
+                # Detailed exposure times
+                strategies[strategy_names[i]]["exptimes"].append([int(np.round(x)) for x in exptimes_epoch])
+          
+        # Check if median depths are given, as they will dominate over exptimes
+        elif len(strategies[strategy_names[i]]["depths_median"]) > 0:
+            print(f"{strategy_names[i]}: Using MEDIAN DEPTHS to calculate the exposure times")
+            # Initiate the exposure times list
+            strategies[strategy_names[i]]["exptimes"] = []
+            strategies[strategy_names[i]]["exptimes_median"] = []
+            strategies[strategy_names[i]]["depths"] = []
+            # Iterate over the epochs
+            for j in np.arange(len(strategies[strategy_names[i]]["depths_median"])):
+                depth = strategies[strategy_names[i]]["depths_median"][j]
+                # Iterate over the filters
+                exptimes_epoch = []
+                depths_epoch = []
+                for filt in strategies[strategy_names[i]]["filters"][j]:
+                    exptime = int(np.round(etc.get_exptime(depth, filt, X=airmass)))
+                    exptimes_epoch.append(exptime)
+                    # Append the uniform depth
+                    depths_epoch.append(depth)
+                # Add the average exposure time to the strategies dictionary
+                strategies[strategy_names[i]]["exptimes_median"].append(int(np.round(np.median(exptimes_epoch))))
+                # Detailed exposure times
+                strategies[strategy_names[i]]["exptimes"].append([int(np.round(x)) for x in exptimes_epoch])
+                # Detailed depths
+                strategies[strategy_names[i]]["depths"].append([x for x in depths_epoch])
+        # Individual exposure times are given
+        elif len(strategies[strategy_names[i]]["exptimes"]) > 0:
+            print(f"{strategy_names[i]}: Using INDIVIDUAL EXPOSURE TIMES to calculate median exposure times and depths")
+            # Initiate the depths and median exposure times list
+            strategies[strategy_names[i]]["depths_median"] = []
+            strategies[strategy_names[i]]["exptimes_median"] = []
+            strategies[strategy_names[i]]["depths"] = []
+            # Iterate over the epochs
+            for j in np.arange(len(strategies[strategy_names[i]]["exptimes"])):
+                exptimes_epoch = strategies[strategy_names[i]]["exptimes"][j]
+                strategies[strategy_names[i]]["exptimes_median"].append(int(np.round(np.median(exptimes_epoch))))
+                # Initialize a list of depths
+                depths_epoch = []
+                # Get the depth for each filter
+                for filt in strategies[strategy_names[i]]["filters"][j]:
+                    # Get depth, round it to the second decimal
+                    depth = np.round(etc.get_m5(exptime_median, filt, X=airmass), 2)
+                    depths_epoch.append(depth)
+                # Add the median depth to the strategies dictionary
+                strategies[strategy_names[i]]["depths_median"].append(np.median(depths_epoch))
+                # Detailed depths
+                strategies[strategy_names[i]]["depths"].append([x for x in depths_epoch])
+        # Median exposure times are given
+        elif (len(strategies[strategy_names[i]]["exptimes"]) == 0 and 
+              len(strategies[strategy_names[i]]["exptimes_median"]) > 0):
+            print(f"{strategy_names[i]}: Using MEDIAN EXPOSURE TIMES to calculate the depths")
+            # Initiate the depths and exptimes list
+            strategies[strategy_names[i]]["depths_median"] = []
+            strategies[strategy_names[i]]["depths"] = []
+            strategies[strategy_names[i]]["exptimes"] = []
+            # Iterate over the epochs
+            for j in np.arange(len(strategies[strategy_names[i]]["exptimes_median"])):
+                exptime_median = strategies[strategy_names[i]]["exptimes_median"][j]
+                # Initialize a list of depths
+                depths_epoch = []
+                # Get the depth for each filter
+                for filt in strategies[strategy_names[i]]["filters"][j]:
+                    # Get depth, round it to the second decimal
+                    depth = np.round(etc.get_m5(exptime_median, filt, X=airmass), 2)
+                    depths_epoch.append(depth)
+                # Exposure times for the epoch
+                exptimes_epoch = [exptime_median] * len(strategies[strategy_names[i]]["filters"][j])
+                # Add the median depth to the strategies dictionary
+                strategies[strategy_names[i]]["depths_median"].append(np.median(depths_epoch))
+                # Detailed exposure times
+                strategies[strategy_names[i]]["exptimes"].append([int(np.round(x)) for x in exptimes_epoch])
+                # Detailed depths
+                strategies[strategy_names[i]]["depths"].append([x for x in depths_epoch])
+        else:
+            print("The depths, exptimes_median, or the individual exptimes \
+must be given as input!")
+            return None
+
+    return strategies
+
 
 def makeChart(results, event="BNS merger",
               filters_color_dict={'u': 'b', 'g': 'g', 'r': 'r',
