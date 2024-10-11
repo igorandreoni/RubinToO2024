@@ -223,3 +223,117 @@ def doPlotLc(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
         if doShow is True:
             plt.show()
         plt.close()
+
+def doPlotLc2(strategies, t, delay_hr, xlim=[0, 7], ylim=[28, 18],
+             doShow=True, doSave=True, n_interp=120,
+             offset_filt_hr=0,
+             outfile_base="plot_lc", outfile_format='pdf',
+             event_name="merger",
+             filters_color_dict={'u': 'b', 'g': 'g', 'r': 'r', 'i': 'yellow',
+                                 'z': 'k', 'y': 'orange'},
+             linestyle="-"):
+    # Make sure the time starts from zero in the model
+    if t["t[days]"][0] == 0:
+        pass
+    else:
+        # Add one row at the top
+        t.add_row([0.] + [99. for x in np.arange(len(t.colnames) - 1)])
+        # Re-sort
+        t.sort("t[days]")
+
+    # For each strategy make a plot
+    strategy_names = list(strategies.keys())
+    for i in range(len(strategy_names)):
+        print(f"\n Strategy name: {strategy_names[i]}")
+        # Epochs of the strategy in days
+        days_strategy = np.array(strategies[strategy_names[i]]["cadence_hr"]) / 24
+        depths_strategy = strategies[strategy_names[i]]["depths"]
+        filters_strategy = strategies[strategy_names[i]]["filters"]
+        # Initialize detections and non-detections
+        detections = []
+        non_detections = []
+        # Initialize the possible time offset by filter
+        offset_filt_hr_tot = 0
+
+        # Initialize the figure
+        fig, ax = plt.subplots()
+        # Blank plot for the detections and non-detections
+        ax.scatter([], [], label="Det.", color="k",
+                marker="o", s=100, edgecolor='black')
+        ax.scatter([], [], label="UL", color="k",
+                marker="v", s=100,edgecolor='blue')
+
+        for filt in t.colnames:
+            # Ignore anything not LSST
+            if filt[0] != "l":
+                continue
+            # Ignore time column
+            if filt == "t[days]":
+                continue
+            # Add the offset by filter
+            offset_filt_hr_tot += offset_filt_hr
+            # Interpolate to reduce noise
+            idx = [i for i in np.arange(len(t)) if np.isnan(t[filt][i]) == False]
+            idx = [i for i in idx if not t[filt][i] == np.inf]
+            xnew = np.linspace(t["t[days]"][idx].min(), t["t[days]"][idx].max(), n_interp)
+            f = interpolate.interp1d(t["t[days]"][idx], t[filt][idx])
+            label = f"{filt.replace('lsst', '')}"
+            # Plot the model
+            ax.plot(xnew, f(xnew), linestyle=linestyle, label=label,
+                    color=filters_color_dict[filt.replace("lsst", "")])
+            # for each epoch, check if there is the given filter
+            for day_strategy, filter_strategy, depth_strategy_epoch in zip(days_strategy, filters_strategy, depths_strategy):
+                # Apply the delay between the event and the obs. window
+                day_strategy += delay_hr / 24  # from hours to days
+                # Apply a delay between filters to show overlapping points
+                day_strategy += offset_filt_hr_tot / 24
+                if not (filt.replace('lsst', '') in filter_strategy):
+                    continue
+                else:
+                    # Find depth for the given filter
+                    idx = filter_strategy.index(filt.replace('lsst', ''))
+                    depth = depth_strategy_epoch[idx]
+                # Detection or non-detection?
+                if f(day_strategy) <= depth:
+                    detections.append((filt.replace('lsst', ''), day_strategy, f(day_strategy)))
+                    # Plot the detection using scatter with black edge color
+                    ax.scatter(day_strategy, f(day_strategy), marker="o", s=100, edgecolor='black',
+                               color=filters_color_dict[filt.replace("lsst", "")])
+                else:
+                    non_detections.append((filt.replace('lsst', ''), day_strategy, depth))
+                    # Plot the non-detection using scatter with blue edge color
+                    ax.scatter(day_strategy, depth, marker="v", s=100, edgecolor='blue',
+                               color=filters_color_dict[filt.replace("lsst", "")])
+
+        # Add horizontal dashed lines for fiveSigmaDepth magnitudes for the lsstr, lssti, and lsstg bands
+        ax.axhline(y=24.5, color='r', linestyle='dotted', linewidth=2)  # lsstr
+        ax.axhline(y=23, color='yellow', linestyle='dotted', linewidth=2)  # lssti
+        ax.axhline(y=25, color='g', linestyle='dotted', linewidth=2)  # lsstg
+
+        # Set plot parameters
+        plt.rcParams['xtick.labelsize'] = 20
+        ax.legend(fontsize=11, loc='center left', bbox_to_anchor=(1, 0.5))
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.set_xlabel(f"Time from {event_name} (days)", fontsize=13)
+        ax.set_ylabel("AB Magnitude", fontsize=13)
+        ax.set_title(strategy_names[i], fontsize=13,)
+        ax.tick_params(axis='both', labelsize=13)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        # Add the annotation "Bright KN" at the top-right corner
+        plt.text(4, 19, "Bright KN", fontsize=20,
+        horizontalalignment='right', verticalalignment='top')
+
+        # Save to file
+        if doSave is True:
+            # Generate a valid filename by replacing invalid characters such as spaces with underscores
+            out_filename = f"{outfile_base}_{strategy_names[i]}.{outfile_format}"
+            out_filename = out_filename.replace(" ", "_")  # Replace spaces with underscores
+            out_filename = out_filename.replace("<", "lt")  # Replace < with 'lt' or any other valid character
+            out_filename = out_filename.replace(">", "gt")  # Replace > with 'gt' or any other valid character
+            # Add any additional filename sanitization steps if necessary
+            plt.savefig(out_filename, bbox_inches='tight')
+
+        if doShow is True:
+            plt.show()
